@@ -224,6 +224,31 @@ class SQLiteGenerator(generator.Generator):
 
         return super().subquery_sql(expression, sep=sep)
 
+    def values_sql(self, expression: exp.Values, values_as_table: bool = True) -> str:
+        alias = expression.args.get("alias")
+
+        if (
+            alias
+            and alias.columns
+            and not expression.args.get("pivots")
+            and expression.find_ancestor(exp.From, exp.Join)
+        ):
+            columns = alias.columns
+            # SQLite can't name the columns of a derived table in its alias, but it names the
+            # columns of a VALUES clause column1, column2, ...
+            values = expression.copy()
+            values.set("alias", None)
+            width = max(len(columns), len(expression.expressions[0].expressions))
+            projections = [
+                exp.alias_(exp.column(f"column{i}"), columns[i - 1])
+                if i <= len(columns)
+                else exp.column(f"column{i}")
+                for i in range(1, width + 1)
+            ]
+            return self.sql(exp.select(*projections).from_(values).subquery(alias.this))
+
+        return super().values_sql(expression, values_as_table=values_as_table)
+
     def autoincrementcolumnconstraint_sql(
         self, expression: exp.AutoIncrementColumnConstraint
     ) -> str:

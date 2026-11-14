@@ -865,6 +865,30 @@ class TestSQLite(Validator):
 
             self.assertIn("Named columns are not supported in table alias.", cm.output[0])
 
+    def test_values_table_alias_columns(self):
+        self.validate_all(
+            "SELECT x, y FROM (SELECT column1 AS x, column2 AS y FROM (VALUES (1, 'a'), (2, 'b'))) AS t",
+            read={
+                "duckdb": "SELECT x, y FROM (VALUES (1, 'a'), (2, 'b')) AS t(x, y)",
+                "postgres": "SELECT x, y FROM (VALUES (1, 'a'), (2, 'b')) AS t(x, y)",
+            },
+        )
+        self.validate_all(
+            "SELECT * FROM (SELECT column1 AS a, column2 FROM (VALUES (1, 2))) AS t",
+            read={"duckdb": "SELECT * FROM (VALUES (1, 2)) AS t(a)"},
+        )
+        self.validate_all(
+            "SELECT * FROM (SELECT column1 AS a FROM (VALUES (1))) AS t JOIN (SELECT column1 AS b FROM (VALUES (2))) AS u ON a < b",
+            read={
+                "duckdb": "SELECT * FROM (VALUES (1)) AS t(a) JOIN (VALUES (2)) AS u(b) ON a < b"
+            },
+        )
+        self.validate_identity("SELECT * FROM (VALUES (1, 2)) AS t")
+        self.validate_identity(
+            "WITH t(x) AS (VALUES (1), (2)) SELECT x FROM t",
+            "WITH t(x) AS (SELECT * FROM (VALUES (1), (2)) AS _values) SELECT x FROM t",
+        )
+
     def test_trunc(self):
         # SQLite TRUNC only accepts one argument
         self.validate_identity("TRUNC(3.14)").assert_is(exp.Trunc)
