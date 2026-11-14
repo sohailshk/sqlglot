@@ -865,6 +865,57 @@ class TestSQLite(Validator):
 
             self.assertIn("Named columns are not supported in table alias.", cm.output[0])
 
+    def test_negative_limit(self):
+        # A negative LIMIT means "no upper bound" in SQLite
+        self.validate_all(
+            "SELECT x FROM t LIMIT -1 OFFSET 1",
+            write={
+                "sqlite": "SELECT x FROM t LIMIT -1 OFFSET 1",
+                "duckdb": "SELECT x FROM t LIMIT ALL OFFSET 1",
+                "postgres": "SELECT x FROM t LIMIT ALL OFFSET 1",
+            },
+        )
+        self.validate_all(
+            "SELECT x FROM t LIMIT 1, -5",
+            write={
+                "sqlite": "SELECT x FROM t LIMIT -1 OFFSET 1",
+                "duckdb": "SELECT x FROM t LIMIT ALL OFFSET 1",
+            },
+        )
+        self.validate_all(
+            "SELECT x FROM t LIMIT -1",
+            write={
+                "sqlite": "SELECT x FROM t",
+                "duckdb": "SELECT x FROM t LIMIT ALL",
+                "postgres": "SELECT x FROM t LIMIT ALL",
+                "mysql": "SELECT x FROM t",
+            },
+        )
+        self.validate_identity("SELECT x FROM t LIMIT 2 OFFSET 1")
+
+        # A negative OFFSET is treated as 0 in SQLite
+        self.validate_all(
+            "SELECT x FROM t LIMIT 2 OFFSET -1",
+            write={
+                "sqlite": "SELECT x FROM t LIMIT 2 OFFSET 0",
+                "duckdb": "SELECT x FROM t LIMIT 2 OFFSET 0",
+            },
+        )
+        self.validate_all(
+            "SELECT x FROM t LIMIT -1, 2",
+            write={
+                "sqlite": "SELECT x FROM t LIMIT 2 OFFSET 0",
+                "duckdb": "SELECT x FROM t LIMIT 2 OFFSET 0",
+            },
+        )
+        self.validate_all(
+            "SELECT x FROM t LIMIT -1 OFFSET -3",
+            write={
+                "sqlite": "SELECT x FROM t LIMIT -1 OFFSET 0",
+                "duckdb": "SELECT x FROM t LIMIT ALL OFFSET 0",
+            },
+        )
+
     def test_trunc(self):
         # SQLite TRUNC only accepts one argument
         self.validate_identity("TRUNC(3.14)").assert_is(exp.Trunc)

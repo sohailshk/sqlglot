@@ -133,6 +133,38 @@ class SQLiteParser(parser.Parser):
         TokenType.MATCH: binary_range_parser(exp.Match),
     }
 
+    @staticmethod
+    def _is_negative_int(expression: exp.Expr | None) -> bool:
+        return bool(expression and expression.is_int and expression.to_py() < 0)
+
+    def _parse_limit(
+        self,
+        this: exp.Expr | None = None,
+        top: bool = False,
+        skip_limit_token: bool = False,
+    ) -> exp.Expr | None:
+        limit = super()._parse_limit(this, top=top, skip_limit_token=skip_limit_token)
+
+        if isinstance(limit, exp.Limit):
+            # A negative LIMIT means "no upper bound" in SQLite, i.e. it behaves like LIMIT ALL
+            if self._is_negative_int(limit.args.get("expression")):
+                limit.set("expression", exp.var("ALL"))
+
+            # A negative OFFSET is treated as 0 (LIMIT <offset>, <count> form)
+            if self._is_negative_int(limit.args.get("offset")):
+                limit.set("offset", exp.Literal.number(0))
+
+        return limit
+
+    def _parse_offset(self, this: exp.Expr | None = None) -> exp.Expr | None:
+        offset = super()._parse_offset(this)
+
+        # A negative OFFSET is treated as 0 in SQLite
+        if isinstance(offset, exp.Offset) and self._is_negative_int(offset.args.get("expression")):
+            offset.set("expression", exp.Literal.number(0))
+
+        return offset
+
     def _parse_is(self, this: exp.Expr | None) -> exp.Expr | None:
         """SQLite's IS / IS NOT is a null-safe equality against any expression.
 
