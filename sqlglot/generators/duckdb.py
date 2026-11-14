@@ -2097,6 +2097,7 @@ class DuckDBGenerator(generator.Generator):
     # Mappings for EXTRACT/DATE_PART transpilation
     # Maps Snowflake specifiers unsupported in DuckDB to strftime format codes
     EXTRACT_STRFTIME_MAPPINGS: t.ClassVar[dict[str, tuple[str, str]]] = {
+        "ISOWEEK": ("%V", "INTEGER"),
         "WEEKISO": ("%V", "INTEGER"),
         "YEAROFWEEK": ("%G", "INTEGER"),
         "YEAROFWEEKISO": ("%G", "INTEGER"),
@@ -3107,7 +3108,7 @@ class DuckDBGenerator(generator.Generator):
         """
         Transpile EXTRACT/DATE_PART for DuckDB, handling specifiers not natively supported.
 
-        DuckDB doesn't support: WEEKISO, YEAROFWEEK, YEAROFWEEKISO, NANOSECOND,
+        DuckDB doesn't support: ISOWEEK, WEEKISO, YEAROFWEEK, YEAROFWEEKISO, NANOSECOND,
         EPOCH_SECOND (as integer), EPOCH_MILLISECOND, EPOCH_MICROSECOND, EPOCH_NANOSECOND
         """
         this = expression.this

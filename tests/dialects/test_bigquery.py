@@ -770,6 +770,13 @@ LANGUAGE js AS
             },
         )
         self.validate_all(
+            "EXTRACT(ISOWEEK FROM DATE '2013-12-25')",
+            write={
+                "bigquery": "EXTRACT(ISOWEEK FROM CAST('2013-12-25' AS DATE))",
+                "duckdb": "CAST(STRFTIME(CAST('2013-12-25' AS DATE), '%V') AS INT)",
+            },
+        )
+        self.validate_all(
             "EXTRACT(HOUR FROM DATETIME(2008, 12, 25, 15, 30, 00))",
             write={
                 "bigquery": "EXTRACT(HOUR FROM DATETIME(2008, 12, 25, 15, 30, 00))",
